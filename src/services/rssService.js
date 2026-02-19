@@ -9,6 +9,13 @@ const parser = new Parser({
   },
 });
 
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const feedResponseCache = new Map();
+
+function getFeedCacheKey(feedUrls) {
+  return JSON.stringify([...feedUrls].sort());
+}
+
 /**
  * Fetch and parse a single RSS feed URL.
  * Returns an array of normalized article objects.
@@ -30,6 +37,17 @@ async function fetchFeed(url) {
  * Returns a flat array of all articles.
  */
 async function fetchAllFeeds(feedUrls) {
+  const cacheKey = getFeedCacheKey(feedUrls);
+  const cachedEntry = feedResponseCache.get(cacheKey);
+
+  if (cachedEntry && Date.now() < cachedEntry.expiresAt) {
+    return cachedEntry.data;
+  }
+
+  if (cachedEntry) {
+    feedResponseCache.delete(cacheKey);
+  }
+
   const results = await Promise.allSettled(feedUrls.map(fetchFeed));
 
   const articles = [];
@@ -39,6 +57,11 @@ async function fetchAllFeeds(feedUrls) {
     } else {
       console.warn(`[RSS] Failed to fetch ${feedUrls[index]}: ${result.reason.message}`);
     }
+  });
+
+  feedResponseCache.set(cacheKey, {
+    data: articles,
+    expiresAt: Date.now() + CACHE_TTL_MS,
   });
 
   return articles;
