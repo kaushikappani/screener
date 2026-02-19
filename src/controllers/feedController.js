@@ -3,13 +3,40 @@ const { fetchAllFeeds } = require("../services/rssService");
 const { filterByStocks, sortByDate } = require("../utils/filterArticles");
 const { buildRssFeed } = require("../utils/buildRssFeed");
 
+function getRequestHost(req) {
+  if (typeof req.get === "function") {
+    return req.get("host");
+  }
+
+  return req.headers?.["x-forwarded-host"] || req.headers?.host || "localhost";
+}
+
+function getRequestProtocol(req) {
+  if (req.protocol) {
+    return req.protocol;
+  }
+
+  const forwardedProtocol = req.headers?.["x-forwarded-proto"];
+  if (forwardedProtocol) {
+    return forwardedProtocol.split(",")[0].trim();
+  }
+
+  return "https";
+}
+
+function getStocksFromRequest(req) {
+  const stocksQuery = req.query?.stocks;
+
+  if (!stocksQuery) {
+    return config.stocks;
+  }
+
+  return stocksQuery.split(",").map((stock) => stock.trim().toLowerCase());
+}
+
 async function getFeeds(req, res) {
   try {
-    // Allow query param override: ?stocks=TCS,RELIANCE
-    const stockNames = req.query.stocks
-      ? req.query.stocks.split(",").map((s) => s.trim().toLowerCase())
-      : config.stocks;
-
+    const stockNames = getStocksFromRequest(req);
     const feedUrls = config.rssFeeds;
 
     if (feedUrls.length === 0) {
@@ -23,7 +50,7 @@ async function getFeeds(req, res) {
     const rssXml = buildRssFeed({
       title: "Stock Market Screener Feed",
       description: `Filtered stock news for: ${stockNames.join(", ").toUpperCase()}`,
-      link: `${req.protocol}://${req.get("host")}/api/feeds`,
+      link: `${getRequestProtocol(req)}://${getRequestHost(req)}/api/feeds`,
       articles: sorted,
     });
 
