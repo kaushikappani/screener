@@ -1,9 +1,9 @@
-const config = require("../config");
-const { fetchAllFeeds } = require("../services/rssService");
-const { filterByStocks, sortByDate } = require("../utils/filterArticles");
-const { buildRssFeed } = require("../utils/buildRssFeed");
+const config = require("../src/config");
+const { fetchAllFeeds } = require("../src/services/rssService");
+const { filterByStocks, sortByDate } = require("../src/utils/filterArticles");
+const { buildRssFeed } = require("../src/utils/buildRssFeed");
 
-function getRequestHost(req) {
+function getHost(req) {
   if (typeof req.get === "function") {
     return req.get("host");
   }
@@ -11,7 +11,7 @@ function getRequestHost(req) {
   return req.headers?.["x-forwarded-host"] || req.headers?.host || "localhost";
 }
 
-function getRequestProtocol(req) {
+function getProtocol(req) {
   if (req.protocol) {
     return req.protocol;
   }
@@ -24,7 +24,7 @@ function getRequestProtocol(req) {
   return "https";
 }
 
-function getStocksFromRequest(req) {
+function getStocks(req) {
   const stocksQuery = req.query?.stocks;
 
   if (!stocksQuery) {
@@ -34,9 +34,9 @@ function getStocksFromRequest(req) {
   return stocksQuery.split(",").map((stock) => stock.trim().toLowerCase());
 }
 
-async function getFeeds(req, res) {
+module.exports = async function handler(req, res) {
   try {
-    const stockNames = getStocksFromRequest(req);
+    const stockNames = getStocks(req);
     const feedUrls = config.rssFeeds;
 
     if (feedUrls.length === 0) {
@@ -50,16 +50,14 @@ async function getFeeds(req, res) {
     const rssXml = buildRssFeed({
       title: "Stock Market Screener Feed",
       description: `Filtered stock news for: ${stockNames.join(", ").toUpperCase()}`,
-      link: `${getRequestProtocol(req)}://${getRequestHost(req)}/api/feeds`,
+      link: `${getProtocol(req)}://${getHost(req)}/api/feeds`,
       articles: sorted,
     });
 
     res.set("Content-Type", "application/rss+xml; charset=utf-8");
-    res.send(rssXml);
+    return res.send(rssXml);
   } catch (err) {
-    console.error("[FeedController] Error:", err.message);
-    res.status(500).send("<error>Failed to fetch feeds</error>");
+    console.error("[FeedAPI] Error:", err.message);
+    return res.status(500).send("<error>Failed to fetch feeds</error>");
   }
-}
-
-module.exports = { getFeeds };
+};
