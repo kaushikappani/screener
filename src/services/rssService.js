@@ -9,19 +9,39 @@ const parser = new Parser({
   },
 });
 
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const feedResponseCache = new Map();
+
 /**
  * Fetch and parse a single RSS feed URL.
  * Returns an array of normalized article objects.
  */
 async function fetchFeed(url) {
+  const cachedEntry = feedResponseCache.get(url);
+
+  if (cachedEntry && Date.now() < cachedEntry.expiresAt) {
+    return cachedEntry.data;
+  }
+
+  if (cachedEntry) {
+    feedResponseCache.delete(url);
+  }
+
   const feed = await parser.parseURL(url);
-  return (feed.items || []).map((item) => ({
+  const articles = (feed.items || []).map((item) => ({
     title: item.title || "",
     description: item.contentSnippet || item.content || "",
     link: item.link || "",
     pubDate: item.pubDate || item.isoDate || null,
     source: feed.title || url,
   }));
+
+  feedResponseCache.set(url, {
+    data: articles,
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  });
+
+  return articles;
 }
 
 /**
