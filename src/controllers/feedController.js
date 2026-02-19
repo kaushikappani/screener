@@ -34,6 +34,17 @@ function getStocksFromRequest(req) {
   return stocksQuery.split(",").map((stock) => stock.trim().toLowerCase());
 }
 
+function setContentType(res) {
+  if (typeof res.set === "function") {
+    res.set("Content-Type", "application/rss+xml; charset=utf-8");
+    return;
+  }
+
+  if (typeof res.setHeader === "function") {
+    res.setHeader("Content-Type", "application/rss+xml; charset=utf-8");
+  }
+}
+
 async function getFeeds(req, res) {
   try {
     const stockNames = getStocksFromRequest(req);
@@ -54,7 +65,7 @@ async function getFeeds(req, res) {
       articles: sorted,
     });
 
-    res.set("Content-Type", "application/rss+xml; charset=utf-8");
+    setContentType(res);
     res.send(rssXml);
   } catch (err) {
     console.error("[FeedController] Error:", err.message);
