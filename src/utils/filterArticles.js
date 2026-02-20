@@ -1,6 +1,6 @@
 /**
  * Filter articles whose title or description mentions any of the given stock names.
- * Case-insensitive substring match.
+ * Case-insensitive stock mention match with word boundaries.
  *
  * @param {Array} articles - Array of article objects from rssService
  * @param {string[]} stockNames - Lowercased stock name strings
@@ -16,8 +16,14 @@ function filterByStocks(articles, stockNames) {
 
   return nonNavDeclarationArticles.filter((article) => {
     const text = `${article.title} ${article.description}`.toLowerCase();
-    return stockNames.some((stock) => text.includes(stock));
+    return stockNames.some((stock) => containsStockMention(text, stock));
   });
+}
+
+function containsStockMention(text, stock) {
+  const escapedStock = stock.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const stockRegex = new RegExp(`(^|[^a-z0-9])${escapedStock}([^a-z0-9]|$)`);
+  return stockRegex.test(text);
 }
 
 /**
