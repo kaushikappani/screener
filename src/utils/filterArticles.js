@@ -7,9 +7,14 @@
  * @returns {Array} Filtered articles
  */
 function filterByStocks(articles, stockNames) {
-  if (!stockNames || stockNames.length === 0) return articles;
+  const nonNavDeclarationArticles = articles.filter((article) => {
+    const text = JSON.stringify(article).toLowerCase();
+    return !text.includes("declaration of nav");
+  });
 
-  return articles.filter((article) => {
+  if (!stockNames || stockNames.length === 0) return nonNavDeclarationArticles;
+
+  return nonNavDeclarationArticles.filter((article) => {
     const text = `${article.title} ${article.description}`.toLowerCase();
     return stockNames.some((stock) => text.includes(stock));
   });
